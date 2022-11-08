@@ -29,7 +29,7 @@ public class Config {
         checkHandler();
         checkFile();
 
-        handler.reloadConfig(this);
+        handler.reloadConfig(this, sourceFile);
     }
 
     public void checkHandler() {
