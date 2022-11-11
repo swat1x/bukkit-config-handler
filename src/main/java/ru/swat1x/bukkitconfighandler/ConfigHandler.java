@@ -6,15 +6,14 @@ import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.inventory.ItemStack;
 import ru.swat1x.bukkitconfighandler.annotation.ConfigPath;
 
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.lang.reflect.ParameterizedType;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j(topic = "swat1x | BukkitConfigHandler")
@@ -74,7 +73,7 @@ public class ConfigHandler {
 
     @SneakyThrows
     private void updateField(Config config, Field field, String path, YamlConfiguration handle) {
-        Object configObject = Objects.requireNonNull(mapPathValue(field, handle, path),
+        Object configObject = Objects.requireNonNull(mapPathValue(field, config, handle, path),
                 String.format("This config path `%s` is null", path));
         field.set(configObject, config);
     }
@@ -93,9 +92,26 @@ public class ConfigHandler {
     }
 
     @SneakyThrows
-    private Object mapPathValue(Field field, YamlConfiguration handle, String path) {
-        Class<?> tClass = field.getType();
-        if (tClass == Map.class) {
+    private Object mapPathValue(Field field, Class<?> tClass, Object fieldValue, YamlConfiguration handle, String path) {
+        if (tClass == String.class) {
+            return handle.getString(path);
+        } else if (tClass == Integer.class || tClass == int.class) {
+            return handle.getInt(path);
+        } else if (tClass == Double.class || tClass == double.class) {
+            return handle.getDouble(path);
+        } else if (tClass == Float.class || tClass == float.class) {
+            return (float) handle.getDouble(path);
+        } else if (tClass == Boolean.class || tClass == boolean.class) {
+            return handle.getBoolean(path);
+        } else if (tClass == ItemStack.class) {
+            return handle.getItemStack(path);
+        } else if (tClass == List.class) {
+
+            ParameterizedType stringListType = (ParameterizedType) field.getGenericType();
+            Class<?> listClass = (Class<?>) stringListType.getActualTypeArguments()[0];
+
+            return mapPathValue(field, listClass, fieldValue, handle, path);
+        } else if (tClass == Map.class) {
             Map<String, Object> map = new HashMap<>();
             for (String key : handle.getConfigurationSection(path).getKeys(false)) {
                 String valuePath = path + "." + key;
@@ -106,24 +122,11 @@ public class ConfigHandler {
         } else {
             return handle.get(path);
         }
+    }
 
-//        if (tClass == String.class) {
-//            return handle.getString(path);
-//        } else if (tClass == Integer.class || tClass == int.class) {
-//            return handle.getInt(path);
-//        } else if (tClass == Double.class || tClass == double.class) {
-//            return handle.getDouble(path);
-//        } else if (tClass == Float.class || tClass == float.class) {
-//            return (float) handle.getDouble(path);
-//        } else if (tClass == Boolean.class || tClass == boolean.class) {
-//            return handle.getBoolean(path);
-//        } else if (tClass == ItemStack.class) {
-//            return handle.getItemStack(path);
-//        } else if (tClass == List.class) {
-//            return handle.getList(path);
-//        } else if (tClass == Map.class) {
-//
-//        }
+    @SneakyThrows
+    private Object mapPathValue(Field field, Config config, YamlConfiguration handle, String path) {
+        return mapPathValue(field, field.getType(), field.get(config), handle, path);
     }
 
     @Value
